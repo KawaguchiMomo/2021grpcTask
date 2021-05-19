@@ -19,7 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
-
+#include <thread>
 #include <grpcpp/grpcpp.h>
 
 #ifdef BAZEL_BUILD
@@ -35,6 +35,11 @@ using helloworld::Greeter;
 using helloworld::HelloReply;
 using helloworld::HelloRequest;
 
+using helloworld::MessageRequest;
+using helloworld::RequestReply;
+using helloworld::ReplyRequest;
+using helloworld::MessageReply;
+
 class GreeterClient {
  public:
   GreeterClient(std::shared_ptr<Channel> channel)
@@ -42,20 +47,23 @@ class GreeterClient {
 
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
-  std::string SayHello(const std::string& user) {
+  // メッセージをサーバーに送信
+  std::string SendRequest(const std::string& date, const std::string& name, const std::string& message) {
     // Data we are sending to the server.
-    HelloRequest request;
-    request.set_name(user);
+    MessageRequest request;
+    request.set_date(date);
+    request.set_name(name);
+    request.set_message(message);
 
     // Container for the data we expect from the server.
-    HelloReply reply;
+    RequestReply reply;
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
     ClientContext context;
 
     // The actual RPC.
-    Status status = stub_->SayHello(&context, request, &reply);
+    Status status = stub_->SendRequest(&context, request, &reply);
 
     // Act upon its status.
     if (status.ok()) {
@@ -63,13 +71,55 @@ class GreeterClient {
     } else {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
-      return "RPC failed";
+      return "SendRequest RPC failed";
+    }
+  }
+
+  // メッセージの受信をリクエストする
+  std::string GetReply(const std::string& date) {
+    // Data we are sending to the server.
+    ReplyRequest request;
+    request.set_date(date);
+
+    // Container for the data we expect from the server.
+    MessageReply reply;
+
+    // Context for the client. It could be used to convey extra information to
+    // the server and/or tweak certain RPC behaviors.
+    ClientContext context;
+
+    // The actual RPC.
+    Status status = stub_->GetReply(&context, request, &reply);
+
+    // Act upon its status.
+    if (status.ok()) {
+      return reply.message();
+    } else {
+      std::cout << status.error_code() << ": " << status.error_message()
+                << std::endl;
+      return "GetReply RPC failed";
     }
   }
 
  private:
   std::unique_ptr<Greeter::Stub> stub_;
 };
+
+// エラーコード12が修正でき次第スレッドで実装する　今は使ってない
+void ThreadFunc(GreeterClient* greeter) {
+  // メッセージの受信を模倣
+  // 10秒間、1秒おきにメッセージを表示
+  std::string date = "date";
+  for(int i = 0; i < 10; ++i) {
+    std::cout << "ThreadFunc " << i << std::endl;
+    std::cout << greeter->GetReply(date) << std::endl;
+    sleep(1);
+  }
+}
+void exitMethod(std::thread* th1) {
+  th1->join();
+  exit(0);
+}
 
 int main(int argc, char** argv) {
   // Instantiate the client. It requires a channel, out of which the actual RPCs
@@ -100,9 +150,29 @@ int main(int argc, char** argv) {
   }
   GreeterClient greeter(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
-  std::string user("world");
-  std::string reply = greeter.SayHello(user);
-  std::cout << "Greeter received: " << reply << std::endl;
+
+  std::vector<HelloReply*> messageList;
+
+  // ユーザーネームを入れる
+  std::string username;
+  std::cout << "username: ";
+  std::cin >> username;
+  std::string name(username);
+
+  // メッセージ受信開始
+  // std::thread th1(ThreadFunc, &greeter);
+
+  std::string reply;
+  std::string prefix;
+  while(1){
+    std::cin >> prefix;
+    greeter.SendRequest("date", "name", "message");
+    std::cout << "Greeter received: " << greeter.GetReply("date") << std::endl;
+
+    if(prefix == "exit"){
+      // exitMethod(&th1);
+    }
+  }
 
   return 0;
 }

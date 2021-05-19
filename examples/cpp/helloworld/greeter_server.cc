@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
@@ -38,12 +39,28 @@ using helloworld::Greeter;
 using helloworld::HelloReply;
 using helloworld::HelloRequest;
 
+using helloworld::MessageRequest;
+using helloworld::RequestReply;
+using helloworld::ReplyRequest;
+using helloworld::MessageReply;
+
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  Status SayHello(ServerContext* context, const HelloRequest* request,
-                  HelloReply* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->name());
+  MessageRequest serverMessage;
+
+  // メッセージをクライアントから受信
+  Status SendRequest(ServerContext* context, const MessageRequest* request,
+                        RequestReply* reply) override {
+    serverMessage.set_message(request->message() + request->name());
+    return Status::OK;
+  }
+
+  // メッセージをクライアントに送信
+  Status GetReply(ServerContext* context, const ReplyRequest* request,
+                        MessageReply* reply) override {
+    reply->set_date(serverMessage.date());
+    reply->set_name(serverMessage.name());
+    reply->set_message(serverMessage.message());
     return Status::OK;
   }
 };
