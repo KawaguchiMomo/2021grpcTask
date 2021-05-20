@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <time.h>
 
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
@@ -47,20 +48,44 @@ using helloworld::MessageReply;
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
   MessageRequest serverMessage;
+  std::vector<MessageRequest> serverMessageList;
 
   // メッセージをクライアントから受信
   Status SendRequest(ServerContext* context, const MessageRequest* request,
                         RequestReply* reply) override {
-    serverMessage.set_message(request->message() + request->name());
+
+    // char date[64];
+    time_t date = time(NULL);
+    // strftime(date, sizeof(date), "%Y/%m/%d %a %H:%M:%S", localtime(&t));
+    // std::cout << date << std::endl;
+
+    serverMessage.set_date(date);
+    serverMessage.set_name(request->name());
+    serverMessage.set_message(request->message());
+    serverMessageList.push_back(serverMessage);
     return Status::OK;
   }
 
   // メッセージをクライアントに送信
   Status GetReply(ServerContext* context, const ReplyRequest* request,
                         MessageReply* reply) override {
-    reply->set_date(serverMessage.date());
-    reply->set_name(serverMessage.name());
-    reply->set_message(serverMessage.message());
+    // まだデータが一件もない場合は返さない
+    if(serverMessageList.size() == 0) { return Status::OK; }
+
+    // 取得した最後のメッセージの日時が最新でない場合返信
+    if(request->date() != serverMessageList.back().date()) {
+      reply->set_date(serverMessage.date());
+      reply->set_name(serverMessage.name());
+      reply->set_message(serverMessage.message());
+      // テスト用
+      // if(serverMessageList.size() >= 2) {
+      //   int at = serverMessageList.size()-2;
+      //   std::cout << serverMessageList.at(at).message() << std::endl;
+      // }
+
+    } else {
+      reply->set_date(0);
+    }
     return Status::OK;
   }
 };

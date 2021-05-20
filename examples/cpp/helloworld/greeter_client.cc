@@ -21,6 +21,7 @@
 #include <string>
 #include <thread>
 #include <grpcpp/grpcpp.h>
+#include <time.h>
 
 #ifdef BAZEL_BUILD
 #include "examples/protos/helloworld.grpc.pb.h"
@@ -48,7 +49,7 @@ class GreeterClient {
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
   // メッセージをサーバーに送信
-  std::string SendRequest(const std::string& date, const std::string& name, const std::string& message) {
+  std::string SendRequest(const int& date, const std::string& name, const std::string& message) {
     // Data we are sending to the server.
     MessageRequest request;
     request.set_date(date);
@@ -76,7 +77,7 @@ class GreeterClient {
   }
 
   // メッセージの受信をリクエストする
-  std::string GetReply(const std::string& date) {
+  std::string GetReply(const int date, std::vector<MessageReply>* messageList) {
     // Data we are sending to the server.
     ReplyRequest request;
     request.set_date(date);
@@ -93,7 +94,15 @@ class GreeterClient {
 
     // Act upon its status.
     if (status.ok()) {
-      return reply.message();
+      // 新着メッセージがなかった場合は新着がない旨を返す（返り値や仕組み要改修）
+      if (reply.date() == 0) { return "新着メッセージなし"; }
+      messageList->push_back(reply);
+
+      char date[64];
+      time_t t = reply.date();
+      strftime(date, sizeof(date), "(%H:%M)", localtime(&t));
+      std::string message = date + reply.name() + ": " +reply.message();
+      return message;
     } else {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
@@ -105,14 +114,22 @@ class GreeterClient {
   std::unique_ptr<Greeter::Stub> stub_;
 };
 
-// エラーコード12が修正でき次第スレッドで実装する　今は使ってない
 void ThreadFunc(GreeterClient* greeter) {
-  // メッセージの受信を模倣
-  // 10秒間、1秒おきにメッセージを表示
-  std::string date = "date";
-  for(int i = 0; i < 10; ++i) {
-    std::cout << "ThreadFunc " << i << std::endl;
-    std::cout << greeter->GetReply(date) << std::endl;
+  std::vector<MessageReply> messageList;
+  int date;
+  // メッセージの受信
+  while(1) {
+    if(messageList.size() == 0) {
+      date = 0;
+    } else {
+      date = messageList.back().date();
+    }
+    
+    std::string message = greeter->GetReply(date, &messageList);
+    // 新着メッセージがあったときだけ表示したい
+    if(message != "新着メッセージなし") {
+      std::cout << message << std::endl;
+    }
     sleep(1);
   }
 }
@@ -151,26 +168,28 @@ int main(int argc, char** argv) {
   GreeterClient greeter(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
-  std::vector<HelloReply*> messageList;
 
   // ユーザーネームを入れる
   std::string username;
   std::cout << "username: ";
   std::cin >> username;
   std::string name(username);
-
+  std::string message;
+  int date = 1;
+  
   // メッセージ受信開始
-  // std::thread th1(ThreadFunc, &greeter);
+  std::thread th1(ThreadFunc, &greeter);
 
-  std::string reply;
-  std::string prefix;
+
+
   while(1){
-    std::cin >> prefix;
-    greeter.SendRequest("date", "name", "message");
-    std::cout << "Greeter received: " << greeter.GetReply("date") << std::endl;
+    // メッセージ送信
+    std::cin >> message;
+    greeter.SendRequest(date, name, message);
+    // std::cout << greeter.GetReply(date) << std::endl;
 
-    if(prefix == "exit"){
-      // exitMethod(&th1);
+    if(message == "exit"){
+      exitMethod(&th1);
     }
   }
 

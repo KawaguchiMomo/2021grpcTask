@@ -45,7 +45,7 @@ message HelloReply {
 
 // メッセージを送る
 message MessageRequest {
-  string date = 1;
+  int32 date = 1;
   string name = 2;
   string message = 3;
 }
@@ -56,12 +56,12 @@ message RequestReply {
 
 // メッセージの受信をリクエストする
 message ReplyRequest {
-  string date = 1;
+  int32 date = 1;
 }
 
 // メッセージを受信する
 message MessageReply {
-  string date = 1;
+  int32 date = 1;
   string name = 2;
   string message = 3;
 }
