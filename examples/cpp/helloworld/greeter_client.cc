@@ -52,10 +52,9 @@ class GreeterClient {
   // Assembles the client's payload, sends it and presents the response back
   // from the server.
   // メッセージをサーバーに送信
-  std::string SendRequest(const int& date, const std::string& name, const std::string& message) {
+  std::string SendRequest(const std::string& name, const std::string& message) {
     // Data we are sending to the server.
     MessageRequest request;
-    request.set_date(date);
     request.set_name(name);
     request.set_message(message);
 
@@ -91,7 +90,6 @@ class GreeterClient {
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
     ClientContext context;
-    // std::cout << "ｸﾗ" << std::endl;
     // The actual RPC.
     Status status = stub_->GetReply(&context, request, &reply);
 
@@ -194,7 +192,6 @@ int main(int argc, char** argv) {
   std::cin >> username;
   std::string name(username);
   std::string message;
-  int date = 1;
   
   // メッセージ受信開始
   std::thread th1(ThreadFunc, &greeter);
@@ -205,8 +202,7 @@ int main(int argc, char** argv) {
     if(message == "exit"){
       exitMethod(&th1);
     }
-    greeter.SendRequest(date, name, message);
-    // std::cout << greeter.GetReply(date) << std::endl;
+    greeter.SendRequest(name, message);
   }
   return 0;
 }

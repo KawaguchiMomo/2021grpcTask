@@ -45,7 +45,6 @@ message HelloReply {
 
 // メッセージを送る
 message MessageRequest {
-  int32 date = 1;
   string name = 2;
   string message = 3;
 }

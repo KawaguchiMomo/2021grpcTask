@@ -48,14 +48,14 @@ using helloworld::MessageReplyList;
 
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  std::vector<MessageRequest> serverMessageList;
+  std::vector<MessageReply> serverMessageList;
 
   // メッセージをクライアントから受信
   Status SendRequest(ServerContext* context, const MessageRequest* request,
                         RequestReply* reply) override {
 
     time_t date = time(NULL);
-    MessageRequest serverMessage;
+    MessageReply serverMessage;
     serverMessage.set_date(date);
     serverMessage.set_name(request->name());
     serverMessage.set_message(request->message());
@@ -80,21 +80,21 @@ class GreeterServiceImpl final : public Greeter::Service {
 
     // サーバーに保存されているメッセージの末尾から、取得した最後のメッセージまでイテレータを巻き戻す
     auto itr = serverMessageList.end()-1;
-    for( ; (*itr).date() > request->date(); itr--) {
+    for( ; itr->date() > request->date(); itr--) {
       if (itr == serverMessageList.begin() ) {
         break;
       }
     }
-   if(serverMessageList.size() != 1) {
+   if(itr->date() == request->date()) {
       itr++;
     }
     // 取得した最後のメッセージ以降の未送信メッセージを配列にする
     for(;itr != serverMessageList.end(); itr++) {
       // MessageReply messageReply;
       auto message = reply->add_messages();
-      message->set_date((*itr).date());
-      message->set_name((*itr).name());
-      message->set_message((*itr).message());
+      message->set_date(itr->date());
+      message->set_name(itr->name());
+      message->set_message(itr->message());
     }
 
     return Status::OK;
