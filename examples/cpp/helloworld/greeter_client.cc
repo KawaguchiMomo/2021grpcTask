@@ -40,6 +40,9 @@ using helloworld::MessageRequest;
 using helloworld::RequestReply;
 using helloworld::ReplyRequest;
 using helloworld::MessageReply;
+using helloworld::MessageReplyList;
+
+void PrintMessage(const MessageReply& message);
 
 class GreeterClient {
  public:
@@ -77,64 +80,79 @@ class GreeterClient {
   }
 
   // メッセージの受信をリクエストする
-  std::string GetReply(const int date, std::vector<MessageReply>* messageList) {
+  void GetReply(const int date, std::vector<MessageReply>* messageList) {
     // Data we are sending to the server.
     ReplyRequest request;
     request.set_date(date);
 
     // Container for the data we expect from the server.
-    MessageReply reply;
+    MessageReplyList reply;
 
     // Context for the client. It could be used to convey extra information to
     // the server and/or tweak certain RPC behaviors.
     ClientContext context;
-
+    // std::cout << "ｸﾗ" << std::endl;
     // The actual RPC.
     Status status = stub_->GetReply(&context, request, &reply);
 
     // Act upon its status.
     if (status.ok()) {
-      // 新着メッセージがなかった場合は新着がない旨を返す（返り値や仕組み要改修）
-      if (reply.date() == 0) { return "新着メッセージなし"; }
-      messageList->push_back(reply);
+      // 新着メッセージがなかった場合は新着がない旨を返す
+      if (reply.messages().empty() == true) { return; }
+      std::vector<MessageReply> messages;
+      for (auto& message : reply.messages()) {
 
-      char date[64];
-      time_t t = reply.date();
-      strftime(date, sizeof(date), "(%H:%M)", localtime(&t));
-      std::string message = date + reply.name() + ": " +reply.message();
-      return message;
+        messageList->push_back(message);
+
+        PrintMessage(message);
+
+      }
+      return;
     } else {
       std::cout << status.error_code() << ": " << status.error_message()
                 << std::endl;
-      return "GetReply RPC failed";
+      std::cout << "GetReply RPC failed" << std::endl;
     }
-  }
+  }  
 
  private:
   std::unique_ptr<Greeter::Stub> stub_;
 };
 
+void PrintMessage(const MessageReply& message) {
+  // タイムスタンプを日付表示に変換
+  char date[64];
+  time_t t = message.date();
+  strftime(date, sizeof(date), "(%H:%M)", localtime(&t));
+
+  // 表示メッセージを作成
+  std::string text = date + message.name() + ": " + message.message();
+
+  std::cout << text << std::endl;
+}
+
 void ThreadFunc(GreeterClient* greeter) {
   std::vector<MessageReply> messageList;
   int date;
+  time_t t = time(NULL);
+  date = t;
+
   // メッセージの受信
   while(1) {
+    // 一番最後に受信したメッセージのタイムスタンプを取得
     if(messageList.size() == 0) {
-      date = 0;
+      greeter->GetReply(date, &messageList);
     } else {
-      date = messageList.back().date();
-    }
-    
-    std::string message = greeter->GetReply(date, &messageList);
-    // 新着メッセージがあったときだけ表示したい
-    if(message != "新着メッセージなし") {
-      std::cout << message << std::endl;
+      int date = messageList.back().date();
+      greeter->GetReply(date, &messageList);
     }
     sleep(1);
   }
 }
+
 void exitMethod(std::thread* th1) {
   th1->join();
+  std::cout << "おわり";
   exit(0);
 }
 
@@ -168,7 +186,6 @@ int main(int argc, char** argv) {
   GreeterClient greeter(
       grpc::CreateChannel(target_str, grpc::InsecureChannelCredentials()));
 
-
   // ユーザーネームを入れる
   std::string username;
   std::cout << "username: ";
@@ -180,18 +197,14 @@ int main(int argc, char** argv) {
   // メッセージ受信開始
   std::thread th1(ThreadFunc, &greeter);
 
-
-
   while(1){
     // メッセージ送信
     std::cin >> message;
-    greeter.SendRequest(date, name, message);
-    // std::cout << greeter.GetReply(date) << std::endl;
-
     if(message == "exit"){
       exitMethod(&th1);
     }
+    greeter.SendRequest(date, name, message);
+    // std::cout << greeter.GetReply(date) << std::endl;
   }
-
   return 0;
 }

@@ -27,10 +27,10 @@ service Greeter {
   rpc SayHello (HelloRequest) returns (HelloReply) {}
   // Sends another greeting
   rpc SayHelloAgain (HelloRequest) returns (HelloReply) {}
-  // Sends a greeting
+// クライアントからきたメッセージを保存
   rpc SendRequest (MessageRequest) returns (RequestReply) {}
-  // Sends a greeting
-  rpc GetReply (ReplyRequest) returns (MessageReply) {}
+// メッセージをクライアントに送信
+  rpc GetReply (ReplyRequest) returns (MessageReplyList) {}
 }
 
 // The request message containing the user's name.
@@ -64,4 +64,8 @@ message MessageReply {
   int32 date = 1;
   string name = 2;
   string message = 3;
+}
+
+message MessageReplyList {
+  repeated MessageReply messages = 1;
 }

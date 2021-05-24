@@ -44,21 +44,18 @@ using helloworld::MessageRequest;
 using helloworld::RequestReply;
 using helloworld::ReplyRequest;
 using helloworld::MessageReply;
+using helloworld::MessageReplyList;
 
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  MessageRequest serverMessage;
   std::vector<MessageRequest> serverMessageList;
 
   // メッセージをクライアントから受信
   Status SendRequest(ServerContext* context, const MessageRequest* request,
                         RequestReply* reply) override {
 
-    // char date[64];
     time_t date = time(NULL);
-    // strftime(date, sizeof(date), "%Y/%m/%d %a %H:%M:%S", localtime(&t));
-    // std::cout << date << std::endl;
-
+    MessageRequest serverMessage;
     serverMessage.set_date(date);
     serverMessage.set_name(request->name());
     serverMessage.set_message(request->message());
@@ -68,23 +65,40 @@ class GreeterServiceImpl final : public Greeter::Service {
 
   // メッセージをクライアントに送信
   Status GetReply(ServerContext* context, const ReplyRequest* request,
-                        MessageReply* reply) override {
+                        MessageReplyList* reply) override {
     // まだデータが一件もない場合は返さない
-    if(serverMessageList.size() == 0) { return Status::OK; }
+    if(serverMessageList.size() == 0) { 
+      reply->clear_messages();
+      return Status::OK;
 
-    // 取得した最後のメッセージの日時が最新でない場合返信
-    if(request->date() != serverMessageList.back().date()) {
-      reply->set_date(serverMessage.date());
-      reply->set_name(serverMessage.name());
-      reply->set_message(serverMessage.message());
-      // テスト用
-      // if(serverMessageList.size() >= 2) {
-      //   int at = serverMessageList.size()-2;
-      //   std::cout << serverMessageList.at(at).message() << std::endl;
-      // }
+    }
+    // 取得した最後のメッセージの日時が最新の場合返さない
+    if(request->date() == serverMessageList.back().date()) {
+      reply->clear_messages();
+      return Status::OK;
+    }
 
-    } else {
-      reply->set_date(0);
+    // サーバーに保存されているメッセージの末尾から、取得した最後のメッセージまでイテレータを巻き戻す
+    auto itr = serverMessageList.end()-1;
+    for( ; (*itr).date() > request->date(); itr--) {
+      if (itr == serverMessageList.begin() ) {
+        break;
+      }
+    }
+   if(serverMessageList.size() != 1) {
+      itr++;
+    }
+    // 取得した最後のメッセージ以降の未送信メッセージを配列にする
+    for(;itr != serverMessageList.end(); itr++) {
+      // MessageReply messageReply;
+      auto message = reply->add_messages();
+      message->set_date((*itr).date());
+      message->set_name((*itr).name());
+      message->set_message((*itr).message());
+    }
+
+    for(auto& a:serverMessageList){
+      std::cout << a.date() << ")" << a.name() << ":" <<a.message() << std::endl;
     }
     return Status::OK;
   }
