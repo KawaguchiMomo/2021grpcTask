@@ -25,6 +25,12 @@ package helloworld;
 service Greeter {
   // Sends a greeting
   rpc SayHello (HelloRequest) returns (HelloReply) {}
+  // Sends another greeting
+  rpc SayHelloAgain (HelloRequest) returns (HelloReply) {}
+// クライアントからきたメッセージを保存
+  rpc SendRequest (MessageRequest) returns (RequestReply) {}
+// メッセージをクライアントに送信
+  rpc GetReply (ReplyRequest) returns (MessageReplyList) {}
 }
 
 // The request message containing the user's name.
@@ -35,4 +41,30 @@ message HelloRequest {
 // The response message containing the greetings
 message HelloReply {
   string message = 1;
+}
+
+// メッセージを送る
+message MessageRequest {
+  string name = 2;
+  string message = 3;
+}
+// メッセージを送った結果
+message RequestReply {
+  string message = 1;
+}
+
+// メッセージの受信をリクエストする
+message ReplyRequest {
+  int32 date = 1;
+}
+
+// メッセージを受信する
+message MessageReply {
+  int32 date = 1;
+  string name = 2;
+  string message = 3;
+}
+
+message MessageReplyList {
+  repeated MessageReply messages = 1;
 }

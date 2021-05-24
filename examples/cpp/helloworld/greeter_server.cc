@@ -19,6 +19,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
+#include <time.h>
 
 #include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <grpcpp/grpcpp.h>
@@ -38,12 +40,63 @@ using helloworld::Greeter;
 using helloworld::HelloReply;
 using helloworld::HelloRequest;
 
+using helloworld::MessageRequest;
+using helloworld::RequestReply;
+using helloworld::ReplyRequest;
+using helloworld::MessageReply;
+using helloworld::MessageReplyList;
+
 // Logic and data behind the server's behavior.
 class GreeterServiceImpl final : public Greeter::Service {
-  Status SayHello(ServerContext* context, const HelloRequest* request,
-                  HelloReply* reply) override {
-    std::string prefix("Hello ");
-    reply->set_message(prefix + request->name());
+  std::vector<MessageReply> serverMessageList;
+
+  // メッセージをクライアントから受信
+  Status SendRequest(ServerContext* context, const MessageRequest* request,
+                        RequestReply* reply) override {
+
+    time_t date = time(NULL);
+    MessageReply serverMessage;
+    serverMessage.set_date(date);
+    serverMessage.set_name(request->name());
+    serverMessage.set_message(request->message());
+    serverMessageList.push_back(serverMessage);
+    return Status::OK;
+  }
+
+  // メッセージをクライアントに送信
+  Status GetReply(ServerContext* context, const ReplyRequest* request,
+                        MessageReplyList* reply) override {
+    // まだデータが一件もない場合は返さない
+    if(serverMessageList.size() == 0) { 
+      reply->clear_messages();
+      return Status::OK;
+
+    }
+    // 取得した最後のメッセージの日時が最新の場合返さない
+    if(request->date() == serverMessageList.back().date()) {
+      reply->clear_messages();
+      return Status::OK;
+    }
+
+    // サーバーに保存されているメッセージの末尾から、取得した最後のメッセージまでイテレータを巻き戻す
+    auto itr = serverMessageList.end()-1;
+    for( ; itr->date() > request->date(); itr--) {
+      if (itr == serverMessageList.begin() ) {
+        break;
+      }
+    }
+   if(itr->date() <= request->date()) {
+      itr++;
+    }
+    // 取得した最後のメッセージ以降の未送信メッセージを配列にする
+    for(;itr != serverMessageList.end(); itr++) {
+      // MessageReply messageReply;
+      auto message = reply->add_messages();
+      message->set_date(itr->date());
+      message->set_name(itr->name());
+      message->set_message(itr->message());
+    }
+
     return Status::OK;
   }
 };
