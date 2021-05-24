@@ -85,7 +85,7 @@ class GreeterServiceImpl final : public Greeter::Service {
         break;
       }
     }
-   if(itr->date() == request->date()) {
+   if(itr->date() <= request->date()) {
       itr++;
     }
     // 取得した最後のメッセージ以降の未送信メッセージを配列にする
