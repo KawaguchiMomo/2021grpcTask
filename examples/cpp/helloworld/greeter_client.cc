@@ -130,6 +130,7 @@ void PrintMessage(const MessageReply& message) {
 
   std::cout << text << std::endl;
 }
+bool ThreadFuncEndFlag = false;
 
 void ThreadFunc(GreeterClient* greeter) {
   std::vector<MessageReply> messageList;
@@ -138,7 +139,7 @@ void ThreadFunc(GreeterClient* greeter) {
   date = t;
 
   // メッセージの受信
-  while(1) {
+  while(!ThreadFuncEndFlag) {
     // 一番最後に受信したメッセージのタイムスタンプを取得
     if(messageList.size() == 0) {
       greeter->GetReply(date, &messageList);
@@ -151,10 +152,11 @@ void ThreadFunc(GreeterClient* greeter) {
 }
 
 void exitMethod(std::thread* th1) {
+  ThreadFuncEndFlag = true;
   th1->join();
-  std::cout << "おわり";
   exit(0);
 }
+
 
 int main(int argc, char** argv) {
   // Instantiate the client. It requires a channel, out of which the actual RPCs

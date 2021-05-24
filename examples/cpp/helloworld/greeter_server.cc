@@ -97,9 +97,6 @@ class GreeterServiceImpl final : public Greeter::Service {
       message->set_message((*itr).message());
     }
 
-    for(auto& a:serverMessageList){
-      std::cout << a.date() << ")" << a.name() << ":" <<a.message() << std::endl;
-    }
     return Status::OK;
   }
 };
